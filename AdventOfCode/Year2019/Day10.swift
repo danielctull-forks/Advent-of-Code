@@ -8,19 +8,33 @@
 
 import Foundation
 
-extension CGPoint: Hashable {
-    func angle(to point: CGPoint, _ startAngle: Double = 0) -> Double {
+public struct Point: Equatable {
+    public let x: Int
+    public let y: Int
+    public init(x: Int, y: Int) {
+        self.x = x
+        self.y = y
+    }
+}
+
+extension Point {
+    static let zero = Point(x: 0, y: 0)
+}
+
+extension Point: Hashable {
+    func angle(to point: Point, _ startAngle: Double = 0) -> Double {
         let dx = point.x - x
         let dy = point.y - y
-        let angle = Double(atan2f(Float(dy), Float(dx))) + startAngle
-        if angle < 0 { return angle + degreesToRadians(360) }
-        return angle
+        let angle = atan2(Double(dy), Double(dx)) + .pi / 2
+        return (angle + 2 * .pi).truncatingRemainder(dividingBy: 2 * .pi)
+//        if angle <= 0 { return angle + degreesToRadians(360) }
+//        return angle
     }
     
-    func distance(to point: CGPoint) -> Float {
-        let dx = point.x - x
-        let dy = point.y - y
-        return Float(sqrt(dx * dx + dy * dy))
+    func distance(to point: Point) -> Double {
+        let dx = Double(point.x - x)
+        let dy = Double(point.y - y)
+        return sqrt(dx * dx + dy * dy)
     }
     
     public func hash(into hasher: inout Hasher) {
@@ -37,20 +51,20 @@ func degreesToRadians(_ number: Double) -> Double {
     return number * .pi / 180
 }
 
-func readAsteroidMap(_ input: [[String]]) -> [CGPoint] {
-    var asteroidPoints = [CGPoint]()
+func readAsteroidMap(_ input: [[String]]) -> [Point] {
+    var asteroidPoints = [Point]()
     for y in 0..<input.count {
         for x in 0..<input[y].count {
             if input[y][x] == "#" {
-                asteroidPoints.append(CGPoint(x: x, y: y))
+                asteroidPoints.append(Point(x: x, y: y))
             }
         }
     }
     return asteroidPoints
 }
 
-func calculateBestAsteroidBaseCount(_ asteroidPoints: [CGPoint]) -> (Int, CGPoint) {
-    var bestAsteroid = CGPoint.zero
+func calculateBestAsteroidBaseCount(_ asteroidPoints: [Point]) -> (Int, Point) {
+    var bestAsteroid = Point.zero
     var bestCount = 0
     for asteroid in asteroidPoints {
         var count = 0
@@ -82,12 +96,12 @@ extension Array where Element: Hashable {
     }
 }
 
-func drawStarMap(size: CGSize, points: [CGPoint], dead: [CGPoint], station: CGPoint) {
+func drawStarMap(size: CGSize, points: [Point], dead: [Point], station: Point) {
     var map = ""
     for y in 0..<Int(size.height) {
         var row = ""
         for x in 0..<Int(size.width) {
-            let p = CGPoint(x: x, y: y)
+            let p = Point(x: x, y: y)
             if points.first(where: { $0 == p }) != nil {
                 row += "🟤"
             } else if p == station {
@@ -103,15 +117,19 @@ func drawStarMap(size: CGSize, points: [CGPoint], dead: [CGPoint], station: CGPo
     print(map + "\n")
 }
 
-func vaporizeAsteroids(_ asteroidPoints: [CGPoint], stationCoords: CGPoint, mapSize: CGSize) -> [CGPoint] {
+func vaporizeAsteroids(_ asteroidPoints: [Point], stationCoords: Point, mapSize: CGSize) -> [Point] {
     var count = 0
-    var otherAsteroids = [CGPoint:(Float, Double)]()
-    var deadAsteroids = [CGPoint]()
-    let startAngle = degreesToRadians(90.1)
+    var otherAsteroids = [Point:(Double, Double)]()
+    var deadAsteroids = [Point]()
+    let startAngle = degreesToRadians(90)
     _ = asteroidPoints.map {
         if $0 != stationCoords {
             otherAsteroids[$0] = (stationCoords.distance(to: $0), stationCoords.angle(to: $0, startAngle))
         }
+    }
+
+    for i in otherAsteroids.sorted(by: { (lhs, rhs) -> Bool in lhs.value.1 < rhs.value.1}) {
+        print(i.key, i.value.1)
     }
     let angles = otherAsteroids.map { $0.value.1 }.removingDuplicates().sorted()
     drawStarMap(size: mapSize, points: asteroidPoints, dead: deadAsteroids, station: stationCoords)
